@@ -19,10 +19,12 @@ class CancelablePromise extends Promise {
         });
     });
 
-    this.rejector = rejector; this.isCanceled = false;
+    this.rejector = rejector;
+    this.isCanceled = false;
 
     this.cancel = () => {
-      this.isCanceled = true; this.rejector({ isCanceled: this.isCanceled });
+      this.isCanceled = true;
+      this.rejector({ isCanceled: this.isCanceled });
     };
 
     this.oldThen = this.then;
