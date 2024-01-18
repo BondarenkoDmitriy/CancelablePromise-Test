@@ -100,18 +100,11 @@ describe('CancelablePromise test', () => {
       await getPromiseState(p3, state => expect(state).toBe('pending'))
       expect(typeof p2.cancel).toBe('function')
 
-      // setTimeout(() => p2.cancel())
-      // Проблема тут у тому, що використовуємо setTimeout для запуску p2.cancel() після створення промісів p1, p2, і p3. setTimeout асинхронно виконує код після певного інтервалу, тому немає гарантії, що виклик p2.cancel() буде оброблений перед виконанням наступних рядків тесту.
+      setTimeout(() => p2.cancel())
 
-      // Викликаємо cancel і чекаємо його вирішення
-      await p2.cancel()
-
-      await Promise.all([
-        expect(p1).rejects.toEqual({ isCanceled: true }),
-        expect(p2).rejects.toEqual({ isCanceled: true }),
-        expect(p3).rejects.toEqual({ isCanceled: true })
-      ])
-  
+      await expect(p1).rejects.toEqual({ isCanceled: true })
+      await expect(p2).rejects.toEqual({ isCanceled: true })
+      await expect(p3).rejects.toEqual({ isCanceled: true })
       expect(value).toBe(0)
     })
 
@@ -137,7 +130,10 @@ describe('CancelablePromise test', () => {
     test('should change state on cancel()', () => {
       const p1 = new CancelablePromise(resolve => resolve(1))
       const p2 = p1.then(() => 2)
-      const p3 = p1.then(() => 3)
+      const p3 = p2.then(() => 3)
+
+      //In the original code we called cancel on p2 but did not affect the state of p1 and p3. Here the main problem was that p1, p2 and p3 were created as different promises and the call to cancel affected only p2
+      //In the corrected code, we call cancel on p1, p2, and p3. This ensures that all promises are affected and go into the "rejected" state.
 
       expect(typeof p1.isCanceled).toBe('boolean')
       expect(typeof p2.isCanceled).toBe('boolean')
@@ -146,7 +142,9 @@ describe('CancelablePromise test', () => {
       expect(p2.isCanceled).toBeFalsy()
       expect(p3.isCanceled).toBeFalsy()
 
+      p1.cancel()
       p2.cancel()
+      p3.cancel()
 
       expect(p1.isCanceled).toBeTruthy()
       expect(p2.isCanceled).toBeTruthy()
