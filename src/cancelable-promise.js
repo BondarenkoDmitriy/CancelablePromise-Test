@@ -38,4 +38,5 @@ class CancelablePromise extends Promise {
     };
   }
 }
+
 module.exports = CancelablePromise;
