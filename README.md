@@ -11,9 +11,9 @@ Implemented the CancelablePromise class, which behaves like the Promise class in
   cd CancelablePromise-Test
 
 3. Install dependencies by executing the following command:
-  - npm i
-  - npm i jest-cli
-  - make sure you have node v14.18.2
+    - npm i
+    - npm i jest-cli
+    - make sure you have node v14.18.2
 
 4. Run the tests by running the following command:
   npm test
