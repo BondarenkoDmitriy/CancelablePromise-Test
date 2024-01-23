@@ -64,8 +64,7 @@ describe('CancelablePromise test', () => {
 
       expect(cp).not.toBe(cp2)
       expect(cp2).toBeInstanceOf(CancelablePromise)
-      // await cp2.catch(() => 0)
-      // It is important to note that calling await cp2.catch(() => 0) causes the rejection from cp2 to be handled and the resolved value 0 is returned. However, the expression await expect(cp).rejects.toEqual(initValue) expects that the rejection from cp will be with an initValue that conflicts with the handling in catch where the value is set to 0. So this causes the test to fail. If the purpose of the test is to determine whether the exception handling in the then method works, you can simplify the test by removing await cp2.catch(() => 0)
+      await cp2.catch(() => 0)
       await expect(cp).rejects.toEqual(initValue)
       await expect(cp2).resolves.toEqual(func(initValue))
     })
@@ -102,14 +101,8 @@ describe('CancelablePromise test', () => {
 
       setTimeout(() => p2.cancel())
 
-      // await expect(p1).rejects.toEqual({ isCanceled: true })
-      // commented out this line because p2.cancel() had already been called and thus promise p1 was canceled. Thus, there was no need to wait for it to be rejected again in subsequent asynchronous operations
+      await expect(p1).rejects.toEqual({ isCanceled: true })
       await expect(p2).rejects.toEqual({ isCanceled: true })
-
-      setTimeout(() => p3.cancel())
-
-      //this is added because p3 needs to be canceled after p2 is canceled. Your original test didn't wait for the p3 distinction, and that may have led to the wrong result.
-
       await expect(p3).rejects.toEqual({ isCanceled: true })
       expect(value).toBe(0)
     })
@@ -118,20 +111,15 @@ describe('CancelablePromise test', () => {
       let value = 0
       const p1 = new CancelablePromise(resolve => setTimeout(() => value = 1, resolve(value)))
       const p2 = p1.then(v => v + 1)
-      const p3 = p2.then(() => void 0)
-      // This is important because p2 already contains the result of shifted p1, so p3 is now a chain of processing the result of p2
+      const p3 = p1.then(() => void 0)
 
       expect(getPromiseState(p3)).resolves.toEqual('pending')
       expect(typeof p2.cancel).toBe('function')
 
       p2.cancel()
 
-      // await expect(p1).rejects.toEqual({ isCanceled: true })
-      // cancellation of p1 is already checked in the test above
-      
+      await expect(p1).rejects.toEqual({ isCanceled: true })
       await expect(p2).rejects.toEqual({ isCanceled: true })
-
-      p3.cancel()
       await expect(p3).rejects.toEqual({ isCanceled: true })
       expect(value).toBe(0)
     })
@@ -141,10 +129,7 @@ describe('CancelablePromise test', () => {
     test('should change state on cancel()', () => {
       const p1 = new CancelablePromise(resolve => resolve(1))
       const p2 = p1.then(() => 2)
-      const p3 = p2.then(() => 3)
-
-      //In the original code we called cancel on p2 but did not affect the state of p1 and p3. Here the main problem was that p1, p2 and p3 were created as different promises and the call to cancel affected only p2
-      //In the corrected code, we call cancel on p1, p2, and p3. This ensures that all promises are affected and go into the "rejected" state.
+      const p3 = p1.then(() => 3)
 
       expect(typeof p1.isCanceled).toBe('boolean')
       expect(typeof p2.isCanceled).toBe('boolean')
@@ -153,9 +138,7 @@ describe('CancelablePromise test', () => {
       expect(p2.isCanceled).toBeFalsy()
       expect(p3.isCanceled).toBeFalsy()
 
-      p1.cancel()
       p2.cancel()
-      p3.cancel()
 
       expect(p1.isCanceled).toBeTruthy()
       expect(p2.isCanceled).toBeTruthy()
