@@ -1,41 +1,57 @@
-'use strict';
+const funcOrThrow = (func, msg = "Argument must be a function.") => {
+  if (typeof func !== "function") throw new Error(msg);
+};
 
-class CancelablePromise extends Promise {
-  constructor(executor) {
-    if (typeof executor !== 'function') {
-      throw new Error('Executor must be a function');
-    }
+class CancelablePromise {
+  constructor(
+    callback,
+    currentNativePromise = null,
+    isCanceled = false,
+    chainOfPromises = []
+  ) {
+    if (!currentNativePromise) funcOrThrow(callback);
 
-    let rejector;
+    this.isCanceled = isCanceled;
 
-    super((resolve, reject) => {
-      rejector = reject;
-      executor(
-        (value) => {
-          resolve(value);
-        },
-        (reason) => {
-          reject(reason);
-        });
-    });
+    this._currentNativePromise =
+      currentNativePromise ??
+      new Promise((resolve, reject) => {
+        callback((result) => {
+          if (this.isCanceled) reject({ isCanceled: this.isCanceled });
+          else resolve(result);
+        }, reject);
+      });
 
-    this.rejector = rejector;
-    this.isCanceled = false;
+    this._chainOfPromises = chainOfPromises;
 
-    this.cancel = () => {
-      this.isCanceled = true;
-      this.rejector({ isCanceled: this.isCanceled });
-    };
+    this._chainOfPromises.push(this);
+  }
 
-    this.oldThen = this.then;
+  then(onCompleted = (res) => res, onError) {
+    funcOrThrow(onCompleted);
 
-    this.then = (...args) => {
-      if (args.length > 0 && typeof args[0] !== 'function') {
-        throw new Error();
-      }
-      
-      return this.oldThen(...args);
-    };
+    const { _currentNativePromise } = this;
+
+    const nextPromise = _currentNativePromise
+      .then(onCompleted, onError)
+      .catch(onError);
+
+    return new CancelablePromise(
+      null,
+      nextPromise,
+      this.isCanceled,
+      this._chainOfPromises
+    );
+  }
+
+  catch(onError) {
+    return this.then(undefined, onError);
+  }
+
+  cancel() {
+    this._chainOfPromises.forEach((promise) => (promise.isCanceled = true));
+
+    return this;
   }
 }
 
