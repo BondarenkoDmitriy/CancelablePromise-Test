@@ -109,9 +109,10 @@ describe('CancelablePromise test', () => {
 
     test('should be canceled immediately', async () => {
       let value = 0
-      const p1 = new CancelablePromise(resolve => setTimeout((value = 1) => resolve(value), 100))
-      const p2 = p1.then(v => value = v)
-      const p3 = p2.then(() => void 0)
+      const p1 = new CancelablePromise(resolve => setTimeout((value = 1) => resolve(value), 0))
+      const p2 = p1.then(v => v + 1)
+      const p3 = p1.then(() => void 0)
+
 
       expect(getPromiseState(p3)).resolves.toEqual('pending')
       expect(typeof p2.cancel).toBe('function')
