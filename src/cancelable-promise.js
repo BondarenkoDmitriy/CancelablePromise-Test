@@ -1,7 +1,3 @@
-const funcOrThrow = (func, msg = "Argument must be a function.") => {
-  if (typeof func !== "function") throw new Error(msg);
-};
-
 class CancelablePromise {
   constructor(
     callback,
@@ -9,17 +5,23 @@ class CancelablePromise {
     isCanceled = false,
     chainOfPromises = []
   ) {
-    if (!currentNativePromise) funcOrThrow(callback);
+    if (!currentNativePromise) getFunc(callback);
 
     this.isCanceled = isCanceled;
 
     this._currentNativePromise =
       currentNativePromise ??
       new Promise((resolve, reject) => {
-        callback((result) => {
-          if (this.isCanceled) reject({ isCanceled: this.isCanceled });
-          else resolve(result);
-        }, reject);
+        callback(
+          (result) => {
+            if (this.isCanceled) reject({ isCanceled: true });
+            else resolve(result);
+          },
+          (error) => {
+            if (this.isCanceled) reject({ isCanceled: true });
+            else reject(error);
+          }
+        );
       });
 
     this._chainOfPromises = chainOfPromises;
@@ -28,13 +30,18 @@ class CancelablePromise {
   }
 
   then(onCompleted = (res) => res, onError) {
-    funcOrThrow(onCompleted);
+    getFunc(onCompleted);
 
     const { _currentNativePromise } = this;
 
-    const nextPromise = _currentNativePromise
-      .then(onCompleted, onError)
-      .catch(onError);
+    const cancellationPromise = new Promise((_, reject) => {
+      this._chainOfPromises.push({ reject });
+    });
+
+    const nextPromise = Promise.race([
+      _currentNativePromise.then(onCompleted),
+      cancellationPromise,
+    ]).catch(onError);
 
     return new CancelablePromise(
       null,
@@ -54,5 +61,10 @@ class CancelablePromise {
     return this;
   }
 }
+
+const getFunc = (func) => {
+  if (typeof func !== "function") {
+    throw new Error("Argument must be a function.");
+  }};
 
 module.exports = CancelablePromise;
